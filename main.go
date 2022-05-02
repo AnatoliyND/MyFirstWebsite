@@ -2,35 +2,34 @@ package main
 
 import (
 	"fmt"
+	"html/template" //пакет для вывода полноценных html страниц
 	"net/http"
 )
 
-type User struct { //Создаем структуру пользователя. Подобие классов в ООП
-	name                  string  //поле для имени пользователя
-	age                   uint16  //поле для возраста uint(тип для целых положительных чисел)
-	money                 int16   //поле баланс денег
-	avg_grades, happiness float64 //средний бал оценок и уровень счастья
+type User struct {
+	Name                  string
+	Age                   uint16
+	Money                 int16
+	Avg_grades, Happiness float64
+	Hobbies               []string
 }
 
-func (u User) getAllInfo() string { //создаем метод. (u User) позволяет обращаться к методу через какой-либо объект, так то GO сам понимает через какой объект+
-	// обращаются к данному методу
-	return fmt.Sprintf("User name is: %s. He is %d age and "+
-		"he has money equal: %d", u.name, u.age, u.money)
+func (u User) getAllInfo() string {
+	return fmt.Sprintf("User Name is: %s. He is %d Age and "+
+		"he has Money equal: %d", u.Name, u.Age, u.Money)
 }
 
-func (u *User) setNewName(newName string) { //создаем метод для установки нового имени объекту. Т.к. мы вносим изменения в объект, мы используем ссылку+
-	//на этот объект (u *User)
-	u.name = newName
+func (u *User) setNewName(newName string) {
+	u.Name = newName
 }
 
-func home_page(w http.ResponseWriter, r *http.Request) { // Передаем два параметра. 1 за счет первого параметра (http.ResponseWriter) мы +
-	//можем обращаться к указаной транице и показывать что-либо с помощью этой страницы пользователю. Второй параметр (http.Request) это запрос,+
-	// тот параметр, который всегда передается
-	ben := User{"Ben", 24, -105, 4.5, 0.9} //создаем объект на основе структуры User с заданными параметрами(их можно и не задавать)
-	ben.setNewName("Sasha")
-	//fmt.Fprintf(w, "Go is very nice!\nUser name is: "+ben.name) //создаем форматированную строку, та строка, в которую можно вставлять подстраиваемые значения, переменные
-	fmt.Fprintf(w, ben.getAllInfo())
-
+func home_page(w http.ResponseWriter, r *http.Request) {
+	ben := User{"Ben", 24, -105, 4.5, 0.9, []string{"Football", "Skate", "Dance"}}
+	/* 	fmt.Fprintf(w, `<h1>Main Text</h1>
+	   	<b>Main Taxt</b1>`) //формат для вывода HTML страниц(приметивный)
+	*/
+	tmpl, _ := template.ParseFiles("templates/home_page.html") //создаем переменную, которая будет хранить шаблон для html страницы
+	tmpl.Execute(w, ben)                                       //отображение шаблона на странице
 }
 
 func contacts_page(w http.ResponseWriter, r *http.Request) {
@@ -38,13 +37,9 @@ func contacts_page(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleRequest() {
-	http.HandleFunc("/", home_page) //функция принимает два параметра. Функция позволяет отследить переход по определенному URL адресу +
-	//и при переходе по этому адресу вызвать какой-либо метод, который будет показывать что-либо пользователю. +
-	//Первым параметром передается тот URL адрес, который будет отслеживаться("/" - означает, что будем отслеживать главную страницу). +
-	//Вторым параметром передаем метод который будет вызываться при переходе на главную страницу
+	http.HandleFunc("/", home_page)
 	http.HandleFunc("/contacts/", contacts_page)
-	http.ListenAndServe(":8080", nil) //Метод принимает два параметра. Первый параметр это порт, по которому будем слушать локальный сервер.+
-	// Во втором параметре передаются параметры настройки самого сервера
+	http.ListenAndServe(":8080", nil)
 }
 
 func main() {
