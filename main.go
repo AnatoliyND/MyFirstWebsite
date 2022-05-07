@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/mux"
 )
 
 type Article struct { //создание структуры, которая описывает нашу таблицу
@@ -14,7 +15,8 @@ type Article struct { //создание структуры, которая оп
 	Title, Anons, FullText string
 }
 
-var posts = []Article{} //создаем слайс(список) с типом данных Article, в который будем сохранять новые посты
+var posts = []Article{}  //создаем слайс(список) с типом данных Article, в который будем сохранять новые посты
+var showPost = Article{} //внутрь этого объекта будем помещать ту статью, которую нужно передать в шаблон
 
 func index(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("templates/index.html", "templates/header.html", "templates/footer.html")
@@ -92,11 +94,53 @@ func create(w http.ResponseWriter, r *http.Request) {
 	t.ExecuteTemplate(w, "create", nil) //используем ExecuteTemplate(), т.к. внутри шаблонов будем создавать динамическое подключение
 }
 
+func show_post(w http.ResponseWriter, r *http.Request) { //функция обрабатывает страничку для отображения полной информации про какую-либо статью
+	vars := mux.Vars(r) //создаем объект vars на основе библиотеки mux и применяем метод Vars, в который передаем параметр r
+
+	t, err := template.ParseFiles("templates/show.html", "templates/header.html", "templates/footer.html")
+
+	if err != nil {
+		fmt.Fprintf(w, err.Error())
+	}
+
+	db, err := sql.Open("mysql", "root:root@tcp(127.0.0.1:3306)/golang")
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	res, err := db.Query(fmt.Sprintf("SELECT * FROM `articles` WHERE `id` = '%s'", vars["id"]))
+
+	if err != nil {
+		panic(err)
+	}
+
+	showPost = Article{}
+	for res.Next() {
+		var post Article
+		err = res.Scan(&post.Id, &post.Title, &post.Anons, &post.FullText)
+		if err != nil {
+			panic(err)
+		}
+		showPost = post
+
+	}
+
+	t.ExecuteTemplate(w, "show", showPost)
+
+}
+
 func handleFunc() {
+	rtr := mux.NewRouter()
+	rtr.HandleFunc("/", index).Methods("GET")
+	rtr.HandleFunc("/create", create).Methods("GET")
+	rtr.HandleFunc("/save_article", save_article).Methods("POST")
+	rtr.HandleFunc("/post/{id:[0-9]+}", show_post).Methods("GET") //Создаем шаблон для отслеживания URL адресов. /post/{id:[0-9]+} - говорит о том, +
+	// что будем обрабатывать все URL адреса, которые начинаются со слова post
+
+	http.Handle("/", rtr)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
-	http.HandleFunc("/", index)
-	http.HandleFunc("/create", create)
-	http.HandleFunc("/save_article", save_article)
+
 	http.ListenAndServe(":8080", nil)
 }
 
